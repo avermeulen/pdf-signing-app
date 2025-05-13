@@ -217,41 +217,51 @@ function AppContent() {
   };
   
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only proceed if we're in annotation placement mode
     if (!activeAnnotationType) return;
-    
-    // Get the document container reference for correct positioning
     const documentContainer = documentRef.current;
     if (!documentContainer) return;
-    
-    // Get bounding rectangle of the PDF document container
     const rect = documentContainer.getBoundingClientRect();
-    
-    // Calculate position relative to the document container, adjusted for scale
     const x = (e.clientX - rect.left) / scale;
     const y = (e.clientY - rect.top) / scale;
-    
-    // Create the new annotation
-    const newAnnotation: Annotation = {
-      id: Date.now(),
-      type: activeAnnotationType,
-      page: currentPage,
-      x,
-      y,
-      width: activeAnnotationType === 'signature' ? 200 : 80,
-      height: activeAnnotationType === 'signature' ? 80 : 40,
-      content: null
-    };
-    
-    // Add the new annotation to our state
-    setAnnotations([...annotations, newAnnotation]);
-    
-    // Reset the active annotation type
-    setActiveAnnotationType(null);
-    
-    // Automatically open signature modal for the new annotation
-    setSelectedAnnotation(newAnnotation);
-    setShowSignatureModal(true);
+
+    if (activeAnnotationType === 'initial' && numPages) {
+      // Place initial on all pages at the same position
+      const timestamp = Date.now();
+      const newAnnotations: Annotation[] = [];
+      for (let page = 1; page <= numPages; page++) {
+        newAnnotations.push({
+          id: timestamp + page, // unique id for each
+          type: 'initial',
+          page,
+          x,
+          y,
+          width: 80,
+          height: 40,
+          content: null
+        });
+      }
+      setAnnotations([...annotations, ...newAnnotations]);
+      setActiveAnnotationType(null);
+      // Open signature modal for the first annotation only
+      setSelectedAnnotation(newAnnotations[0]);
+      setShowSignatureModal(true);
+    } else {
+      // Signature: only on current page
+      const newAnnotation: Annotation = {
+        id: Date.now(),
+        type: activeAnnotationType,
+        page: currentPage,
+        x,
+        y,
+        width: activeAnnotationType === 'signature' ? 200 : 80,
+        height: activeAnnotationType === 'signature' ? 80 : 40,
+        content: null
+      };
+      setAnnotations([...annotations, newAnnotation]);
+      setActiveAnnotationType(null);
+      setSelectedAnnotation(newAnnotation);
+      setShowSignatureModal(true);
+    }
   };
   
   const handleAnnotationClick = (annotation: Annotation) => {
@@ -286,20 +296,22 @@ function AppContent() {
     
     if (selectedAnnotation.type === 'signature') {
       setSignature(dataUrl);
+      const updatedAnnotations = annotations.map(ann => 
+        ann.id === selectedAnnotation.id 
+          ? { ...ann, content: dataUrl } 
+          : ann
+      );
+      setAnnotations(updatedAnnotations);
     } else {
       setInitial(dataUrl);
+      // Set the initial drawing on all initial annotations (all pages)
+      const updatedAnnotations = annotations.map(ann =>
+        ann.type === 'initial' ? { ...ann, content: dataUrl } : ann
+      );
+      setAnnotations(updatedAnnotations);
     }
-    
-    const updatedAnnotations = annotations.map(ann => 
-      ann.id === selectedAnnotation.id 
-        ? { ...ann, content: dataUrl } 
-        : ann
-    );
-    
-    setAnnotations(updatedAnnotations);
     setShowSignatureModal(false);
     setSelectedAnnotation(null);
-    
     showToast(`${capitalizeFirstLetter(selectedAnnotation.type)} created successfully`, 'success');
   };
   
