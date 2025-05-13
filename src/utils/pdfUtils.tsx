@@ -12,6 +12,20 @@ export const savePDF = async (pdfUrl: string, annotations: Annotation[]): Promis
     
     // Process each annotation
     for (const annotation of annotations) {
+      if (annotation.type === 'text' && annotation.text) {
+        const page = pages[annotation.page - 1];
+        const { height } = page.getSize();
+        const fontSize = 12;
+        // Draw the text at the top of the annotation box
+        page.drawText(annotation.text, {
+          x: annotation.x,
+          y: height - annotation.y - fontSize, // align text at the top
+          size: fontSize,
+          color: undefined, // default black
+          maxWidth: annotation.width - 8,
+        });
+        continue;
+      }
       if (!annotation.content) continue;
       
       const page = pages[annotation.page - 1];

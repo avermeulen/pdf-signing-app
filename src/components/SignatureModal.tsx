@@ -2,17 +2,17 @@
 import React, { useRef, useState, useEffect } from 'react';
 
 interface SignatureModalProps {
-  type: 'signature' | 'initial';
   onSave: (dataUrl: string) => void;
   onCancel: () => void;
   defaultValue: string | null;
+  modalType: 'signature' | 'initial'; // Add this if needed for modal title
 }
 
 const SignatureModal: React.FC<SignatureModalProps> = ({ 
-  type, 
   onSave, 
   onCancel, 
-  defaultValue 
+  defaultValue,
+  modalType
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
@@ -124,7 +124,7 @@ const SignatureModal: React.FC<SignatureModalProps> = ({
         <div className="modal-content">
           <div className="modal-header">
             <h5 className="modal-title">
-              {type === 'signature' ? 'Draw Your Signature' : 'Draw Your Initials'}
+              {modalType === 'signature' ? 'Draw Your Signature' : 'Draw Your Initials'}
             </h5>
             <button type="button" className="btn-close" onClick={onCancel} aria-label="Close"></button>
           </div>

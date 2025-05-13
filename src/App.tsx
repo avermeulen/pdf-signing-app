@@ -9,6 +9,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './modern-theme.css';
 import PDFAnnotationLayer from './components/PDFAnnotationLayer';
 import SignatureModal from './components/SignatureModal';
+import TextModal from './components/TextModal';
 import LandingPage from './components/LandingPage';
 import Blog from './components/Blog';
 import BlogPost from './components/BlogPost';
@@ -18,13 +19,14 @@ import loadWorker from './pdfWorker';
 // Define types
 export interface Annotation {
   id: number;
-  type: 'signature' | 'initial';
+  type: 'signature' | 'initial' | 'text';
   page: number;
   x: number;
   y: number;
   width: number;
   height: number;
   content: string | null;
+  text?: string; // For text box
 }
 
 interface PDFDocumentProxy {
@@ -72,9 +74,11 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.5);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [activeAnnotationType, setActiveAnnotationType] = useState<'signature' | 'initial' | null>(null);
+  const [activeAnnotationType, setActiveAnnotationType] = useState<'signature' | 'initial' | 'text' | null>(null);
   const [showSignatureModal, setShowSignatureModal] = useState<boolean>(false);
+  const [showTextModal, setShowTextModal] = useState<boolean>(false);
   const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
+  const [editingTextAnnotation, setEditingTextAnnotation] = useState<Annotation | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
   const [initial, setInitial] = useState<string | null>(null);
   const [toast, setToast] = useState<{show: boolean, message: string, type: string} | null>(null);
@@ -211,11 +215,12 @@ function AppContent() {
     setNumPages(numPages);
   };
   
-  const handleAddAnnotation = (type: 'signature' | 'initial') => {
+  const handleAddAnnotation = (type: 'signature' | 'initial' | 'text') => {
     setActiveAnnotationType(type);
-    showToast(`Click where you want to place the ${type}`, 'info');
+    showToast(`Click where you want to place the ${type === 'text' ? 'text box' : type}`, 'info');
   };
   
+  // When placing a text box, open the text modal
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!activeAnnotationType) return;
     const documentContainer = documentRef.current;
@@ -245,6 +250,22 @@ function AppContent() {
       // Open signature modal for the first annotation only
       setSelectedAnnotation(newAnnotations[0]);
       setShowSignatureModal(true);
+    } else if (activeAnnotationType === 'text') {
+      const newAnnotation: Annotation = {
+        id: Date.now(),
+        type: 'text',
+        page: currentPage,
+        x,
+        y,
+        width: 180,
+        height: 40,
+        content: null,
+        text: ''
+      };
+      setAnnotations([...annotations, newAnnotation]);
+      setActiveAnnotationType(null);
+      setEditingTextAnnotation(newAnnotation);
+      setShowTextModal(true);
     } else {
       // Signature: only on current page
       const newAnnotation: Annotation = {
@@ -358,6 +379,21 @@ function AppContent() {
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
   
+  // Add handler for text change
+  const handleTextChange = (id: number, newText: string) => {
+    setAnnotations(annotations =>
+      annotations.map(ann =>
+        ann.id === id ? { ...ann, text: newText } : ann
+      )
+    );
+  };
+  
+  // Double-click handler for editing text box
+  const handleEditTextAnnotation = (annotation: Annotation) => {
+    setEditingTextAnnotation(annotation);
+    setShowTextModal(true);
+  };
+  
   if (!workerLoaded) {
     return (
       <div className="d-flex justify-content-center align-items-center min-vh-100">
@@ -420,6 +456,15 @@ function AppContent() {
                             <i className="bi bi-type"></i>
                             <span className="d-none d-sm-inline">Initial</span>
                           </button>
+                          <button
+                            onClick={() => handleAddAnnotation('text')}
+                            className={`tool-btn ${activeAnnotationType === 'text' ? 'active' : ''}`}
+                            data-bs-toggle="tooltip"
+                            data-bs-title="Add a text box to the document"
+                          >
+                            <i className="bi bi-fonts"></i>
+                            <span className="d-none d-sm-inline">Text</span>
+                          </button>
                           <motion.button
                             onClick={handleSavePDF}
                             className="btn btn-primary"
@@ -463,7 +508,7 @@ function AppContent() {
               <div className="position-relative">
                 <div className="pdf-container overflow-auto p-4" style={{ height: 'calc(100vh - 280px)' }}>
                   {/* Page Navigation Controls */}
-                  <div className="d-flex justify-content-center mb-4">
+                  <div className="d-flex justify-content-center mb-4 sticky-top" style={{ top: 0, zIndex: 20, background: 'rgba(255,255,255,0.95)' }}>
                     <div className="page-controls d-flex flex-wrap align-items-center justify-content-center">
                       <button
                         onClick={() => navigatePages(-1)}
@@ -558,6 +603,8 @@ function AppContent() {
                           onAnnotationClick={handleAnnotationClick}
                           onAnnotationMove={handleAnnotationMove}
                           onAnnotationDelete={handleAnnotationDelete}
+                          onTextChange={handleTextChange}
+                          onEditText={handleEditTextAnnotation}
                         />
                       </Document>
                     </div>
@@ -592,6 +639,26 @@ function AppContent() {
               ? signature 
               : initial
           }
+        />
+      )}
+      
+      {/* Text Modal for editing text annotations */}
+      {showTextModal && editingTextAnnotation && (
+        <TextModal
+          defaultValue={editingTextAnnotation.text || ''}
+          onSave={text => {
+            setAnnotations(annotations =>
+              annotations.map(ann =>
+                ann.id === editingTextAnnotation.id ? { ...ann, text } : ann
+              )
+            );
+            setShowTextModal(false);
+            setEditingTextAnnotation(null);
+          }}
+          onCancel={() => {
+            setShowTextModal(false);
+            setEditingTextAnnotation(null);
+          }}
         />
       )}
       
