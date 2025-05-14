@@ -3,10 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "homepage": "https://YOUR_GITHUB_USERNAME.github.io/pdf-signing-app/",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predeploy": "vite build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "bootstrap": "^5.3.2",
@@ -25,6 +28,7 @@
     "@types/react-dom": "^18.2.7",
     "@types/react-pdf": "^7.0.0",
     "@vitejs/plugin-react": "^4.0.3",
+    "gh-pages": "^6.3.0",
     "typescript": "^5.0.2",
     "vite": "^4.4.5"
   }
